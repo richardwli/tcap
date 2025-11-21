@@ -1,0 +1,327 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>兒童新樂園-清潔巡檢</title>
+    <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
+    <style>
+        body {
+            font-family: sans-serif;
+            padding: 20px;
+            text-align: center;
+            padding-bottom: 80px;
+            /* 為了避免被右下角按鈕擋住 */
+        }
+
+        #reader {
+            width: 100%;
+            max-width: 500px;
+            margin: 0 auto;
+            display: none;
+        }
+
+        /* 修改 input 樣式，使其能與 label 在同一行 */
+        .input-group {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 10px;
+        }
+
+        input {
+            padding: 10px;
+            font-size: 16px;
+            width: 60%;
+            max-width: 250px;
+            margin: 0;
+        }
+
+        button {
+            padding: 10px 20px;
+            font-size: 16px;
+            background-color: #007bff;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 5px;
+        }
+
+        button:disabled {
+            background-color: #ccc;
+        }
+
+        #status {
+            margin-top: 20px;
+            color: green;
+            font-weight: bold;
+        }
+
+        /* 設定按鈕樣式 */
+        .settings-btn {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            background-color: #6c757d;
+            color: white;
+            font-size: 24px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+            z-index: 1000;
+            padding: 0;
+            /* 重設 padding */
+        }
+
+        .settings-btn:hover {
+            background-color: #5a6268;
+        }
+
+        /* 歷史紀錄表格樣式 */
+        #historyContainer {
+            margin-top: 30px;
+            width: 100%;
+            max-width: 600px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 10px;
+        }
+
+        th,
+        td {
+            border: 1px solid #ddd;
+            padding: 8px;
+            text-align: center;
+        }
+
+        th {
+            background-color: #f2f2f2;
+        }
+
+        tr:nth-child(even) {
+            background-color: #f9f9f9;
+        }
+    </style>
+</head>
+
+<body>
+
+    <h2>QR Code 掃描填單</h2>
+
+    <!-- 修改：使用 input-group 讓 label 和 input 在同一行 -->
+    <div class="input-group">
+        <label for="userName">姓名：</label>
+        <input type="text" id="userName" placeholder="請點選右下角設定姓名" disabled>
+    </div>
+
+    <div>
+        <button id="startScanBtn" onclick="startScan()">開啟相機掃描</button>
+        <button id="stopScanBtn" onclick="stopScan()" style="display:none; background-color: #dc3545;">關閉相機</button>
+    </div>
+
+    <div id="reader"></div>
+
+    <p id="status"></p>
+
+    <!-- 歷史紀錄區塊 -->
+    <div id="historyContainer">
+        <h3>最近掃描紀錄</h3>
+        <table>
+            <thead>
+                <tr>
+                    <th>時間</th>
+                    <th>內容</th>
+                </tr>
+            </thead>
+            <tbody id="historyBody">
+                <!-- 歷史紀錄將插入於此 -->
+            </tbody>
+        </table>
+    </div>
+
+    <!-- 設定按鈕 (齒輪圖示) -->
+    <button class="settings-btn" onclick="changeName()" title="設定姓名">⚙️</button>
+
+    <script>
+        // ==========================================
+        // 設定區：請修改這裡
+        // ==========================================
+
+        // 1. Google Form 的提交網址 (注意：將 viewform 改為 formResponse)
+        const GOOGLE_FORM_URL = 'https://docs.google.com/forms/d/e/1FAIpQLSdN53a49aDc3DBxnsNjuTfpRwTTINKahB2misOc0Myw1UvMiw/formResponse';
+
+        // 2. 表單欄位的 entry ID
+        const NAME_ENTRY_ID = 'entry.1432438464'; // 姓名的 ID
+        const QR_ENTRY_ID = 'entry.1212418637';   // QR Code 內容的 ID
+
+        // ==========================================
+
+        let html5QrCode;
+
+        // 頁面載入時讀取 localStorage
+        window.onload = function () {
+            const savedName = localStorage.getItem('savedUserName');
+            if (savedName) {
+                document.getElementById('userName').value = savedName;
+            }
+            renderHistory();
+        }
+
+        // 更改姓名功能
+        function changeName() {
+            const password = prompt("請輸入密碼以更改姓名：");
+            if (password === "children") {
+                const currentName = localStorage.getItem('savedUserName') || "";
+                const newName = prompt("請輸入新的姓名：", currentName);
+
+                if (newName !== null && newName.trim() !== "") {
+                    localStorage.setItem('savedUserName', newName.trim());
+                    document.getElementById('userName').value = newName.trim();
+                    alert("姓名已更新並儲存！");
+                }
+            } else if (password !== null) {
+                alert("密碼錯誤！");
+            }
+        }
+
+        function startScan() {
+            const name = document.getElementById('userName').value;
+            if (!name) {
+                alert('請先設定姓名！');
+                return;
+            }
+
+            document.getElementById('reader').style.display = 'block';
+            document.getElementById('startScanBtn').style.display = 'none';
+            document.getElementById('stopScanBtn').style.display = 'inline-block';
+            document.getElementById('status').innerText = "正在啟動相機...";
+
+            html5QrCode = new Html5Qrcode("reader");
+
+            const config = { fps: 10, qrbox: { width: 250, height: 250 } };
+
+            html5QrCode.start({ facingMode: "environment" }, config, onScanSuccess)
+                .catch(err => {
+                    console.error(err);
+                    document.getElementById('status').innerText = "無法啟動相機，請確認權限或使用 HTTPS。";
+                });
+        }
+
+        function stopScan() {
+            if (html5QrCode) {
+                html5QrCode.stop().then(() => {
+                    document.getElementById('reader').style.display = 'none';
+                    document.getElementById('startScanBtn').style.display = 'inline-block';
+                    document.getElementById('stopScanBtn').style.display = 'none';
+                    // 修改：不再顯示「已關閉相機」
+                    document.getElementById('status').innerText = "";
+                }).catch(err => console.error(err));
+            }
+        }
+
+        function onScanSuccess(decodedText, decodedResult) {
+            stopScan();
+            document.getElementById('status').innerText = `掃描成功！內容：${decodedText}`;
+
+            // 更新歷史紀錄
+            updateHistory(decodedText);
+
+            // 提交資料
+            submitToGoogleForm(decodedText);
+
+            // 修改：彈出視窗告知掃描成功並顯示地點名稱
+            // 使用 setTimeout 確保在 stopScan 和 UI 更新後才彈出，避免卡住
+            setTimeout(() => {
+                alert(`掃描成功！\n地點：${decodedText}`);
+            }, 100);
+        }
+
+        // 歷史紀錄功能
+        function updateHistory(content) {
+            let history = JSON.parse(localStorage.getItem('scanHistory') || "[]");
+
+            const now = new Date();
+            const timeString = `${now.getFullYear()}/${now.getMonth() + 1}/${now.getDate()} ${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`;
+
+            // 新增到最前面
+            history.unshift({ time: timeString, content: content });
+
+            // 只保留最新的 5 筆
+            if (history.length > 5) {
+                history = history.slice(0, 5);
+            }
+
+            localStorage.setItem('scanHistory', JSON.stringify(history));
+            renderHistory();
+        }
+
+        function renderHistory() {
+            const history = JSON.parse(localStorage.getItem('scanHistory') || "[]");
+            const tbody = document.getElementById('historyBody');
+            tbody.innerHTML = ""; // 清空表格
+
+            history.forEach(item => {
+                const row = document.createElement('tr');
+                const timeCell = document.createElement('td');
+                timeCell.innerText = item.time;
+                const contentCell = document.createElement('td');
+                contentCell.innerText = item.content;
+
+                row.appendChild(timeCell);
+                row.appendChild(contentCell);
+                tbody.appendChild(row);
+            });
+        }
+
+        function submitToGoogleForm(qrContent) {
+            const name = document.getElementById('userName').value;
+
+            const iframe = document.createElement('iframe');
+            iframe.name = "hidden_iframe";
+            iframe.style.display = "none";
+            document.body.appendChild(iframe);
+
+            const form = document.createElement('form');
+            form.action = GOOGLE_FORM_URL;
+            form.method = 'POST';
+            form.target = "hidden_iframe";
+
+            const inputName = document.createElement('input');
+            inputName.type = 'hidden';
+            inputName.name = NAME_ENTRY_ID;
+            inputName.value = name;
+            form.appendChild(inputName);
+
+            const inputQr = document.createElement('input');
+            inputQr.type = 'hidden';
+            inputQr.name = QR_ENTRY_ID;
+            inputQr.value = qrContent;
+            form.appendChild(inputQr);
+
+            document.body.appendChild(form);
+
+            form.submit();
+
+            document.getElementById('status').innerText = `已送出資料：${name} - ${qrContent}`;
+
+            setTimeout(() => {
+                document.body.removeChild(form);
+                document.body.removeChild(iframe);
+            }, 1000);
+        }
+    </script>
+</body>
+
+</html>
