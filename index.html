@@ -391,31 +391,6 @@
         window.onload = function () {
             const savedName = localStorage.getItem('savedUserName');
             if (savedName) {
-                document.getElementById('userName').value = savedName;
-            }
-            renderHistory();
-        }
-
-        // 更改姓名功能
-        function changeName() {
-            const password = prompt("請輸入密碼以更改姓名：");
-            if (password === "children") {
-                const currentName = localStorage.getItem('savedUserName') || "";
-                const newName = prompt("請輸入新的姓名：", currentName);
-
-                if (newName !== null && newName.trim() !== "") {
-                    localStorage.setItem('savedUserName', newName.trim());
-                    document.getElementById('userName').value = newName.trim();
-                    alert("姓名已更新並儲存！");
-                }
-            } else if (password !== null) {
-                alert("密碼錯誤！");
-            }
-        }
-
-        function startScan() {
-            const name = document.getElementById('userName').value;
-            if (!name) {
                 alert('請先設定姓名！');
                 return;
             }
