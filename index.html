@@ -36,8 +36,10 @@
         .control-panel {
             display: flex;
             justify-content: space-between;
-            align-items: center;
-            margin-bottom: 20px;
+            align-items: stretch;
+            /* 讓左右高度一致 */
+            margin-bottom: 0;
+            /* 移除下方 margin，讓紀錄緊接在後 */
             gap: 15px;
         }
 
@@ -50,8 +52,8 @@
             background-color: #f8f9fa;
             padding: 15px;
             border-radius: 15px;
-            height: 130px;
-            /* 與按鈕高度一致 */
+            /* height: 130px; */
+            /* 移除固定高度，改由 flex stretch 控制 */
         }
 
         .name-section label {
@@ -72,19 +74,19 @@
             color: #495057;
             text-align: center;
             box-sizing: border-box;
-            /* 確保 padding 不會撐大寬度 */
         }
 
         /* 右側按鈕區塊 */
         .scan-section {
             flex: 0 0 auto;
-            /* 不縮放 */
         }
 
         /* 大顆方形掃描按鈕 */
         #startScanBtn {
-            width: 160px;
-            height: 160px;
+            width: 130px;
+            /* 稍微縮小寬度以配合高度減少 */
+            height: 130px;
+            /* 減少高度 */
             border-radius: 25px;
             background: linear-gradient(135deg, #007bff, #0056b3);
             color: white;
@@ -97,7 +99,6 @@
             box-shadow: 0 8px 20px rgba(0, 123, 255, 0.3);
             transition: transform 0.2s, box-shadow 0.2s;
             margin: 0;
-            /* 移除 margin */
         }
 
         #startScanBtn:hover {
@@ -110,16 +111,17 @@
         }
 
         #startScanBtn svg {
-            width: 80px;
-            height: 80px;
+            width: 70px;
+            /* 稍微縮小圖示 */
+            height: 70px;
             fill: white;
-            margin-bottom: 10px;
+            margin: 0;
+            /* 移除 margin */
         }
 
+        /* 隱藏文字 */
         #startScanBtn span {
-            font-size: 18px;
-            font-weight: bold;
-            letter-spacing: 1px;
+            display: none;
         }
 
         #stopScanBtn {
@@ -134,7 +136,6 @@
             margin-top: 10px;
             box-shadow: 0 4px 10px rgba(220, 53, 69, 0.3);
             display: none;
-            /* 預設隱藏 */
         }
 
         #reader {
@@ -147,11 +148,12 @@
         }
 
         #status {
-            margin-top: 15px;
+            margin-top: 10px;
+            margin-bottom: 10px;
             color: #28a745;
             font-weight: bold;
-            font-size: 1.1em;
-            min-height: 24px;
+            font-size: 1em;
+            min-height: 20px;
         }
 
         /* 設定按鈕樣式 */
@@ -182,18 +184,18 @@
 
         /* 歷史紀錄表格樣式 */
         #historyContainer {
-            margin-top: 30px;
+            margin-top: 10px;
+            /* 減少與上方的間距 */
             width: 100%;
         }
 
         h3 {
             color: #555;
             border-bottom: 2px solid #eee;
-            padding-bottom: 10px;
-            margin-bottom: 15px;
+            padding-bottom: 5px;
+            margin-bottom: 10px;
             text-align: left;
-            /* 標題靠左 */
-            font-size: 1.2em;
+            font-size: 1.1em;
         }
 
         table {
@@ -202,30 +204,51 @@
             background-color: white;
             border-radius: 10px;
             overflow: hidden;
-            /* box-shadow: 0 2px 8px rgba(0,0,0,0.05); */
-            /* 移除陰影以減少邊距感 */
             table-layout: fixed;
-            /* 強制固定寬度 */
         }
 
         th,
         td {
-            padding: 10px 5px;
-            /* 減少左右 padding */
+            padding: 8px 4px;
+            /* 再稍微減少 padding */
             text-align: center;
             border-bottom: 1px solid #eee;
-            font-size: 14px;
-            width: 25%;
-            /* 四個欄位平均寬度 */
+            font-size: 13px;
+            /* 稍微縮小字體以容納更多內容 */
             word-break: break-word;
-            /* 防止文字過長撐開 */
         }
+
+        /* 設定欄位寬度 */
+        th:nth-child(1),
+        td:nth-child(1) {
+            width: 32%;
+        }
+
+        /* 時間 */
+        th:nth-child(2),
+        td:nth-child(2) {
+            width: 20%;
+        }
+
+        /* 編號 */
+        th:nth-child(3),
+        td:nth-child(3) {
+            width: 18%;
+        }
+
+        /* 樓層 */
+        th:nth-child(4),
+        td:nth-child(4) {
+            width: 30%;
+        }
+
+        /* 地點 */
 
         th {
             background-color: #f8f9fa;
             color: #666;
             font-weight: 600;
-            font-size: 15px;
+            font-size: 14px;
         }
 
         tr:last-child td {
@@ -237,9 +260,9 @@
             background-color: #17a2b8;
             color: white;
             border: none;
-            padding: 10px 25px;
+            padding: 8px 20px;
             border-radius: 50px;
-            margin-top: 20px;
+            margin-top: 10px;
             cursor: pointer;
             font-size: 14px;
             transition: background 0.2s;
@@ -272,7 +295,6 @@
                         <path
                             d="M9 2L7.17 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2h-3.17L15 2H9zm3 15c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5z" />
                     </svg>
-                    <span>掃描</span>
                 </button>
             </div>
         </div>
@@ -464,7 +486,8 @@
             let history = JSON.parse(localStorage.getItem('scanHistory') || "[]");
 
             const now = new Date();
-            const timeString = `${now.getFullYear()}/${now.getMonth() + 1}/${now.getDate()} ${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`;
+            // 修改時間格式，加入秒數
+            const timeString = `${now.getFullYear()}/${now.getMonth() + 1}/${now.getDate()} ${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}:${now.getSeconds().toString().padStart(2, '0')}`;
 
             // 新增到最前面 (儲存詳細欄位)
             history.unshift({ time: timeString, no: no, floor: floor, name: name });
