@@ -52,8 +52,6 @@
             background-color: #f8f9fa;
             padding: 15px;
             border-radius: 15px;
-            /* height: 130px; */
-            /* 移除固定高度，改由 flex stretch 控制 */
         }
 
         .name-section label {
@@ -277,7 +275,7 @@
 <body>
 
     <div class="container">
-        <h2>兒童新樂園-清潔巡檢</h2>
+        <h2>兒童新樂園-清潔巡檢 v4</h2>
 
         <!-- 控制面板：左姓名，右按鈕 -->
         <div class="control-panel">
@@ -391,6 +389,53 @@
         window.onload = function () {
             const savedName = localStorage.getItem('savedUserName');
             if (savedName) {
+                document.getElementById('userName').value = savedName;
+            }
+            renderHistory();
+        }
+
+        // 更改姓名功能
+        function changeName() {
+            const password = prompt("請輸入密碼以更改姓名：");
+            if (password === "children") {
+                const currentName = localStorage.getItem('savedUserName') || "";
+                // 根據是否已有姓名，顯示不同的提示文字
+                const promptMsg = currentName ? "請輸入新的姓名 (留空並確認可刪除所有資料)：" : "請輸入姓名：";
+                const newName = prompt(promptMsg, currentName);
+
+                if (newName !== null) {
+                    const trimmedNewName = newName.trim();
+
+                    if (trimmedNewName !== "") {
+                        // 輸入了有效姓名 -> 更新並儲存
+                        localStorage.setItem('savedUserName', trimmedNewName);
+                        document.getElementById('userName').value = trimmedNewName;
+                        alert("姓名已更新並儲存！");
+                    } else {
+                        // 輸入空白
+                        if (currentName !== "") {
+                            // 只有在「原本已有姓名」的情況下，才執行清除資料的邏輯
+                            if (confirm("您輸入了空白姓名，是否要刪除姓名與所有歷史紀錄？")) {
+                                localStorage.removeItem('savedUserName');
+                                localStorage.removeItem('scanHistory');
+                                document.getElementById('userName').value = "";
+                                renderHistory(); // 重新渲染表格（會變空）
+                                alert("資料已全部清除！");
+                            }
+                        } else {
+                            // 首次使用（或原本無姓名）且輸入空白 -> 提示需輸入
+                            alert("請輸入有效姓名！");
+                        }
+                    }
+                }
+            } else if (password !== null) {
+                alert("密碼錯誤！");
+            }
+        }
+
+        function startScan() {
+            const name = document.getElementById('userName').value;
+            if (!name) {
                 alert('請先設定姓名！');
                 return;
             }
