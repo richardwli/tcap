@@ -113,6 +113,16 @@
         tr:nth-child(even) {
             background-color: #f9f9f9;
         }
+
+        /* 顯示更多按鈕樣式 */
+        #loadMoreBtn {
+            background-color: #17a2b8;
+            margin-top: 15px;
+        }
+
+        #loadMoreBtn:hover {
+            background-color: #138496;
+        }
     </style>
 </head>
 
@@ -142,13 +152,16 @@
             <thead>
                 <tr>
                     <th>時間</th>
-                    <th>內容</th>
+                    <th>編號</th>
+                    <th>樓層</th>
+                    <th>地點</th>
                 </tr>
             </thead>
             <tbody id="historyBody">
                 <!-- 歷史紀錄將插入於此 -->
             </tbody>
         </table>
+        <button id="loadMoreBtn" onclick="loadMoreHistory()" style="display: none;">顯示更多</button>
     </div>
 
     <!-- 設定按鈕 (齒輪圖示) -->
@@ -163,12 +176,54 @@
         const GOOGLE_FORM_URL = 'https://docs.google.com/forms/d/e/1FAIpQLSdN53a49aDc3DBxnsNjuTfpRwTTINKahB2misOc0Myw1UvMiw/formResponse';
 
         // 2. 表單欄位的 entry ID
-        const NAME_ENTRY_ID = 'entry.1432438464'; // 姓名的 ID
-        const QR_ENTRY_ID = 'entry.1212418637';   // QR Code 內容的 ID
+        const NAME_ENTRY_ID = 'entry.1432438464';          // 姓名的 ID
+        const LOCATION_NAME_ENTRY_ID = 'entry.1212418637'; // 地點名稱的 ID (原 QR Code ID)
+        const NUMBER_ENTRY_ID = 'entry.773616430';         // 編號的 ID (新增)
+        const FLOOR_ENTRY_ID = 'entry.1031353635';         // 樓層的 ID (新增)
+
+        // 3. 廁所地點資料 (從 wc_no.csv 轉換而來)
+        const WC_LOCATIONS = [
+            { "no": "14(1樓)", "floor": "1F", "name": "男廁" },
+            { "no": "15(1樓)", "floor": "1F", "name": "親子廁間" },
+            { "no": "13(1樓)", "floor": "1F", "name": "女廁" },
+            { "no": "12(1樓)", "floor": "1F", "name": "親子廁間" },
+            { "no": "16(1樓)", "floor": "1F", "name": "女廁" },
+            { "no": "17(1樓)", "floor": "1F", "name": "男廁" },
+            { "no": "18(1樓)", "floor": "1F", "name": "親子廁間" },
+            { "no": "19(1樓)", "floor": "1F", "name": "親子廁間" },
+            { "no": "6(1樓)", "floor": "1F", "name": "男廁" },
+            { "no": "8(1樓)", "floor": "1F", "name": "女廁" },
+            { "no": "7(1樓)", "floor": "1F", "name": "親子廁間" },
+            { "no": "2(1樓)", "floor": "1F", "name": "" },
+            { "no": "1(B1樓)", "floor": "B1", "name": "男廁" },
+            { "no": "4(B1樓)", "floor": "B1", "name": "女廁" },
+            { "no": "2(B1樓)", "floor": "B1", "name": "親子廁間" },
+            { "no": "3(B1樓)", "floor": "B1", "name": "親子廁間" },
+            { "no": "3(2樓)", "floor": "2F", "name": "男廁" },
+            { "no": "8(2樓)", "floor": "2F", "name": "女廁" },
+            { "no": "4(2樓)", "floor": "2F", "name": "親子廁間" },
+            { "no": "5(2樓)", "floor": "2F", "name": "親子廁間" },
+            { "no": "6(2樓)", "floor": "2F", "name": "親子廁間" },
+            { "no": "7(2樓)", "floor": "2F", "name": "親子廁間" },
+            { "no": "9(2樓)", "floor": "2F", "name": "男廁" },
+            { "no": "11(2樓)", "floor": "2F", "name": "女廁" },
+            { "no": "10(2樓)", "floor": "2F", "name": "親子廁間" },
+            { "no": "3(3樓)", "floor": "3F", "name": "男廁" },
+            { "no": "7(3樓)", "floor": "3F", "name": "女廁" },
+            { "no": "4(3樓)", "floor": "3F", "name": "親子廁間" },
+            { "no": "5(3樓)", "floor": "3F", "name": "親子廁間" },
+            { "no": "6(3樓)", "floor": "3F", "name": "親子廁間" },
+            { "no": "8(3樓)", "floor": "3F", "name": "親子廁間" },
+            { "no": "11(3樓)", "floor": "3F", "name": "男廁" },
+            { "no": "10(3樓)", "floor": "3F", "name": "女廁" },
+            { "no": "9(3樓)", "floor": "3F", "name": "親子廁間" },
+            { "no": "12(3樓)", "floor": "3F", "name": "親子廁間" }
+        ];
 
         // ==========================================
 
         let html5QrCode;
+        let displayedHistoryCount = 5; // 預設顯示筆數
 
         // 頁面載入時讀取 localStorage
         window.onload = function () {
@@ -233,34 +288,50 @@
 
         function onScanSuccess(decodedText, decodedResult) {
             stopScan();
-            document.getElementById('status').innerText = `掃描成功！內容：${decodedText}`;
 
-            // 更新歷史紀錄
-            updateHistory(decodedText);
+            // 根據掃描到的編號 (decodedText) 查找地點名稱與樓層
+            const locationObj = WC_LOCATIONS.find(item => item.no === decodedText);
 
-            // 提交資料
-            submitToGoogleForm(decodedText);
+            if (locationObj) {
+                const locationName = locationObj.name;
+                const locationFloor = locationObj.floor;
 
-            // 修改：彈出視窗告知掃描成功並顯示地點名稱
-            // 使用 setTimeout 確保在 stopScan 和 UI 更新後才彈出，避免卡住
-            setTimeout(() => {
-                alert(`掃描成功！\n地點：${decodedText}`);
-            }, 100);
+                const displayContent = `${decodedText} (${locationFloor} - ${locationName})`;
+
+                document.getElementById('status').innerText = `掃描成功！內容：${displayContent}`;
+
+                // 更新歷史紀錄 (傳入詳細資訊)
+                updateHistory(decodedText, locationFloor, locationName);
+
+                // 提交資料 (傳入 編號、地點名稱、樓層)
+                submitToGoogleForm(decodedText, locationName, locationFloor);
+
+                // 彈出視窗
+                setTimeout(() => {
+                    alert(`掃描成功！\n編號：${decodedText}\n樓層：${locationFloor}\n地點：${locationName}`);
+                }, 100);
+            } else {
+                // 若找不到對應資料，不進行提交
+                document.getElementById('status').innerText = `掃描結果：${decodedText} (未知地點)`;
+                setTimeout(() => {
+                    alert(`掃描到的編號 "${decodedText}" 不在系統資料中，無法提交。`);
+                }, 100);
+            }
         }
 
         // 歷史紀錄功能
-        function updateHistory(content) {
+        function updateHistory(no, floor, name) {
             let history = JSON.parse(localStorage.getItem('scanHistory') || "[]");
 
             const now = new Date();
             const timeString = `${now.getFullYear()}/${now.getMonth() + 1}/${now.getDate()} ${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`;
 
-            // 新增到最前面
-            history.unshift({ time: timeString, content: content });
+            // 新增到最前面 (儲存詳細欄位)
+            history.unshift({ time: timeString, no: no, floor: floor, name: name });
 
-            // 只保留最新的 5 筆
-            if (history.length > 5) {
-                history = history.slice(0, 5);
+            // 修改：只保留最新的 500 筆
+            if (history.length > 500) {
+                history = history.slice(0, 500);
             }
 
             localStorage.setItem('scanHistory', JSON.stringify(history));
@@ -272,21 +343,63 @@
             const tbody = document.getElementById('historyBody');
             tbody.innerHTML = ""; // 清空表格
 
-            history.forEach(item => {
+            // 根據 displayedHistoryCount 決定顯示多少筆
+            const toShow = history.slice(0, displayedHistoryCount);
+
+            toShow.forEach(item => {
                 const row = document.createElement('tr');
+
                 const timeCell = document.createElement('td');
                 timeCell.innerText = item.time;
-                const contentCell = document.createElement('td');
-                contentCell.innerText = item.content;
-
                 row.appendChild(timeCell);
-                row.appendChild(contentCell);
+
+                // 檢查是否為新格式資料 (有 no 屬性)
+                if (item.no !== undefined) {
+                    const noCell = document.createElement('td');
+                    noCell.innerText = item.no;
+                    row.appendChild(noCell);
+
+                    const floorCell = document.createElement('td');
+                    floorCell.innerText = item.floor;
+                    row.appendChild(floorCell);
+
+                    const nameCell = document.createElement('td');
+                    nameCell.innerText = item.name;
+                    row.appendChild(nameCell);
+                } else {
+                    // 舊資料相容：顯示 content，並合併欄位
+                    const contentCell = document.createElement('td');
+                    contentCell.innerText = item.content || "";
+                    contentCell.colSpan = 3;
+                    row.appendChild(contentCell);
+                }
+
                 tbody.appendChild(row);
             });
+
+            // 控制「顯示更多」按鈕的顯示與否
+            const loadMoreBtn = document.getElementById('loadMoreBtn');
+            if (history.length > displayedHistoryCount) {
+                loadMoreBtn.style.display = 'inline-block';
+            } else {
+                loadMoreBtn.style.display = 'none';
+            }
         }
 
-        function submitToGoogleForm(qrContent) {
+        // 顯示更多歷史紀錄
+        function loadMoreHistory() {
+            displayedHistoryCount += 10;
+            renderHistory();
+        }
+
+        function submitToGoogleForm(qrContent, locationName, locationFloor) {
             const name = document.getElementById('userName').value;
+
+            // 新增檢查：確保姓名已設定
+            if (!name || name.trim() === "") {
+                alert("請洽管理員進行設定");
+                return;
+            }
 
             const iframe = document.createElement('iframe');
             iframe.name = "hidden_iframe";
@@ -298,23 +411,39 @@
             form.method = 'POST';
             form.target = "hidden_iframe";
 
+            // 1. 姓名
             const inputName = document.createElement('input');
             inputName.type = 'hidden';
             inputName.name = NAME_ENTRY_ID;
             inputName.value = name;
             form.appendChild(inputName);
 
-            const inputQr = document.createElement('input');
-            inputQr.type = 'hidden';
-            inputQr.name = QR_ENTRY_ID;
-            inputQr.value = qrContent;
-            form.appendChild(inputQr);
+            // 2. 地點名稱
+            const inputLocation = document.createElement('input');
+            inputLocation.type = 'hidden';
+            inputLocation.name = LOCATION_NAME_ENTRY_ID;
+            inputLocation.value = locationName;
+            form.appendChild(inputLocation);
+
+            // 3. 編號
+            const inputNumber = document.createElement('input');
+            inputNumber.type = 'hidden';
+            inputNumber.name = NUMBER_ENTRY_ID;
+            inputNumber.value = qrContent;
+            form.appendChild(inputNumber);
+
+            // 4. 樓層 (新增的 ID)
+            const inputFloor = document.createElement('input');
+            inputFloor.type = 'hidden';
+            inputFloor.name = FLOOR_ENTRY_ID;
+            inputFloor.value = locationFloor;
+            form.appendChild(inputFloor);
 
             document.body.appendChild(form);
 
             form.submit();
 
-            document.getElementById('status').innerText = `已送出資料：${name} - ${qrContent}`;
+            document.getElementById('status').innerText = `已送出資料：${name} - ${qrContent} (${locationFloor} - ${locationName})`;
 
             setTimeout(() => {
                 document.body.removeChild(form);
