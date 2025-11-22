@@ -1,6 +1,6 @@
 const CACHE_NAME = 'clean-inspection-v1';
 const ASSETS = [
-  './app.html',
+  './index.html',
   './manifest.json',
   './icon.png',
   'https://unpkg.com/html5-qrcode',
@@ -18,3 +18,4 @@ self.addEventListener('fetch', (e) => {
     caches.match(e.request).then((response) => response || fetch(e.request))
   );
 });
+
