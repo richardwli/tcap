@@ -4,8 +4,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>兒童新樂園-清潔巡檢</title>
+    <title>兒童新樂園-清潔巡檢 (Supabase版)</title>
+    <!-- 引入 html5-qrcode -->
     <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
+    <!-- 引入 Supabase JS SDK -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
@@ -275,7 +278,7 @@
 <body>
 
     <div class="container">
-        <h2>兒童新樂園-清潔巡檢 v4</h2>
+        <h2>兒童新樂園-清潔巡檢</h2>
 
         <!-- 控制面板：左姓名，右按鈕 -->
         <div class="control-panel">
@@ -329,17 +332,35 @@
 
     <script>
         // ==========================================
-        // 設定區：請修改這裡
+        // 設定區：請修改這裡 (Supabase 設定)
         // ==========================================
 
-        // 1. Google Form 的提交網址 (注意：將 viewform 改為 formResponse)
-        const GOOGLE_FORM_URL = 'https://docs.google.com/forms/d/e/1FAIpQLSdN53a49aDc3DBxnsNjuTfpRwTTINKahB2misOc0Myw1UvMiw/formResponse';
+        // 請在此填入您的 Supabase URL 和 Anon Key
+        const SUPABASE_URL = 'https://fjvklwfoapytbbebpobp.supabase.co';
+        const SUPABASE_ANON_KEY = 'sb_publishable_WmoT6IVZ5QhLTLevmm2wWA_l521JsV_';
 
-        // 2. 表單欄位的 entry ID
-        const NAME_ENTRY_ID = 'entry.1432438464';          // 姓名的 ID
-        const LOCATION_NAME_ENTRY_ID = 'entry.1212418637'; // 地點名稱的 ID (原 QR Code ID)
-        const NUMBER_ENTRY_ID = 'entry.773616430';         // 編號的 ID (新增)
-        const FLOOR_ENTRY_ID = 'entry.1031353635';         // 樓層的 ID (新增)
+        // 資料表名稱 (請確保 Supabase 中有此資料表)
+        // 建議欄位結構:
+        // id (int8, primary key)
+        // user_name (text)
+        // location_no (text)
+        // location_name (text)
+        // floor (text)
+        // created_at (timestamptz, default: now())
+        const TABLE_NAME = 'clean_wc';
+
+        // 初始化 Supabase 客戶端
+        let supabaseClient = null;
+        try {
+            if (typeof supabase !== 'undefined') {
+                const { createClient } = supabase;
+                supabaseClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+            } else {
+                console.error("Supabase SDK 未正確載入");
+            }
+        } catch (e) {
+            console.error("Supabase 初始化失敗:", e);
+        }
 
         // 3. 廁所地點資料 (從 wc_no.csv 轉換而來)
         const WC_LOCATIONS = [
@@ -440,8 +461,13 @@
                 return;
             }
 
+            // 檢查 Supabase 設定
+            if (SUPABASE_URL === 'YOUR_SUPABASE_URL' || SUPABASE_ANON_KEY === 'YOUR_SUPABASE_ANON_KEY') {
+                alert('請先在程式碼中設定 Supabase URL 和 Anon Key！');
+                return;
+            }
+
             document.getElementById('reader').style.display = 'block';
-            // document.getElementById('startScanBtn').style.display = 'none'; // 掃描時不隱藏按鈕，保持版面
             document.getElementById('stopScanBtn').style.display = 'block';
             document.getElementById('status').innerText = "正在啟動相機...";
 
@@ -460,9 +486,7 @@
             if (html5QrCode) {
                 html5QrCode.stop().then(() => {
                     document.getElementById('reader').style.display = 'none';
-                    // document.getElementById('startScanBtn').style.display = 'flex';
                     document.getElementById('stopScanBtn').style.display = 'none';
-                    // 修改：不再顯示「已關閉相機」
                     document.getElementById('status').innerText = "";
                 }).catch(err => console.error(err));
             }
@@ -485,8 +509,8 @@
                 // 更新歷史紀錄 (傳入詳細資訊)
                 updateHistory(decodedText, locationFloor, locationName);
 
-                // 提交資料 (傳入 編號、地點名稱、樓層)
-                submitToGoogleForm(decodedText, locationName, locationFloor);
+                // 提交資料到 Supabase
+                submitToSupabase(decodedText, locationName, locationFloor);
 
                 // 彈出視窗
                 setTimeout(() => {
@@ -575,63 +599,52 @@
             renderHistory();
         }
 
-        function submitToGoogleForm(qrContent, locationName, locationFloor) {
-            const name = document.getElementById('userName').value;
+        // 提交資料到 Supabase
+        async function submitToSupabase(qrContent, locationName, locationFloor) {
+            const who = document.getElementById('userName').value;
 
             // 新增檢查：確保姓名已設定
-            if (!name || name.trim() === "") {
+            if (!who || who.trim() === "") {
                 alert("請洽管理員進行設定");
                 return;
             }
 
-            const iframe = document.createElement('iframe');
-            iframe.name = "hidden_iframe";
-            iframe.style.display = "none";
-            document.body.appendChild(iframe);
+            if (!supabaseClient) {
+                console.error("Supabase Client 未初始化");
+                document.getElementById('status').innerText = "系統錯誤：資料庫連線失敗";
+                return;
+            }
 
-            const form = document.createElement('form');
-            form.action = GOOGLE_FORM_URL;
-            form.method = 'POST';
-            form.target = "hidden_iframe";
+            document.getElementById('status').innerText = "正在上傳資料...";
 
-            // 1. 姓名
-            const inputName = document.createElement('input');
-            inputName.type = 'hidden';
-            inputName.name = NAME_ENTRY_ID;
-            inputName.value = name;
-            form.appendChild(inputName);
+            try {
+                // 準備要寫入的資料物件
+                const record = {
+                    who: who,
+                    wc_id: qrContent,
+                    wc_type: locationName,
+                    floor: locationFloor,
+                    // created_at 會由資料庫自動產生，除非需要指定特定時間
+                };
 
-            // 2. 地點名稱
-            const inputLocation = document.createElement('input');
-            inputLocation.type = 'hidden';
-            inputLocation.name = LOCATION_NAME_ENTRY_ID;
-            inputLocation.value = locationName;
-            form.appendChild(inputLocation);
+                const { data, error } = await supabaseClient
+                    .from(TABLE_NAME)
+                    .insert([record])
+                    .select();
 
-            // 3. 編號
-            const inputNumber = document.createElement('input');
-            inputNumber.type = 'hidden';
-            inputNumber.name = NUMBER_ENTRY_ID;
-            inputNumber.value = qrContent;
-            form.appendChild(inputNumber);
+                if (error) {
+                    throw error;
+                }
 
-            // 4. 樓層 (新增的 ID)
-            const inputFloor = document.createElement('input');
-            inputFloor.type = 'hidden';
-            inputFloor.name = FLOOR_ENTRY_ID;
-            inputFloor.value = locationFloor;
-            form.appendChild(inputFloor);
+                console.log("Supabase Insert Success:", data);
+                document.getElementById('status').innerText = `資料上傳成功：${name} - ${qrContent}`;
 
-            document.body.appendChild(form);
-
-            form.submit();
-
-            document.getElementById('status').innerText = `已送出資料：${name} - ${qrContent} (${locationFloor} - ${locationName})`;
-
-            setTimeout(() => {
-                document.body.removeChild(form);
-                document.body.removeChild(iframe);
-            }, 1000);
+            } catch (err) {
+                console.error('Supabase Error:', err);
+                document.getElementById('status').innerText = `上傳失敗：${err.message || err.error_description}`;
+                // 這裡可以選擇是否要彈出 alert，避免干擾使用者連續掃描，但為了明確告知錯誤，先保留
+                // alert(`上傳資料庫失敗：${err.message}`);
+            }
         }
     </script>
 </body>
