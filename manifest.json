@@ -1,6 +1,6 @@
 {
-  "name": "兒童新樂園-清潔巡檢",
-  "short_name": "清潔巡檢",
+  "name": "兒童新樂園-廁所清潔記錄",
+  "short_name": "廁所清潔記錄",
   "start_url": "./index.html",
   "display": "standalone",
   "background_color": "#f4f6f8",
@@ -18,4 +18,5 @@
     }
   ]
 }
+
 
