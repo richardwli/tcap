@@ -418,7 +418,7 @@
         // 更改姓名功能
         function changeName() {
             const password = prompt("請輸入密碼以更改姓名：");
-            if (password === "children") {
+            if (password === "0000") {
                 const currentName = localStorage.getItem('savedUserName') || "";
                 // 根據是否已有姓名，顯示不同的提示文字
                 const promptMsg = currentName ? "請輸入新的姓名 (留空並確認可刪除所有資料)：" : "請輸入姓名：";
