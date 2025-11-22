@@ -5,7 +5,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>兒童新樂園-清潔巡檢紀錄查詢</title>
+    <title>兒童新樂園-廁所清潔記錄查詢</title>
     <!-- 引入 Supabase JS SDK -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
@@ -162,7 +162,7 @@
 
     <div class="container">
         <div class="search-panel">
-            <label for="queryDate" style="font-size:24px">清潔巡檢紀錄：</label>
+            <label for="queryDate" style="font-size:24px">廁所清潔記錄：</label>
             <input type="date" id="queryDate">
             <button onclick="fetchData()">查詢</button>
         </div>
@@ -321,7 +321,7 @@
             { id: "6(1樓)", name: "男廁" },
             { id: "8(1樓)", name: "女廁" },
             { id: "7(1樓)", name: "親子廁間" },
-            { id: "2(1樓)", name: "" }, // 名稱空白
+            { id: "2(1樓)", name: "淨下設施" },
             // B1
             { id: "1(B1樓)", name: "男廁" },
             { id: "4(B1樓)", name: "女廁" },
