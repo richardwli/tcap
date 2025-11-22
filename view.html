@@ -1,0 +1,491 @@
+
+<!DOCTYPE html>
+<html lang="zh-TW">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>兒童新樂園-清潔巡檢紀錄查詢</title>
+    <!-- 引入 Supabase JS SDK -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 20px;
+            color: #333;
+            background-color: #f4f6f8;
+        }
+
+        .container {
+            max-width: 95%;
+            /* 調整為螢幕寬度的 95% */
+            margin: 0 auto;
+            background: white;
+            padding: 30px;
+            border-radius: 20px;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.05);
+        }
+
+        h2 {
+            color: #2c3e50;
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        .search-panel {
+            display: flex;
+            gap: 15px;
+            justify-content: center;
+            align-items: center;
+            background-color: #f8f9fa;
+            padding: 20px;
+            border-radius: 15px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+
+        .search-panel label {
+            font-weight: bold;
+            color: #555;
+        }
+
+        input[type="date"] {
+            padding: 10px;
+            border: 1px solid #ced4da;
+            border-radius: 8px;
+            font-size: 16px;
+            font-family: inherit;
+        }
+
+        button {
+            padding: 10px 25px;
+            background-color: #007bff;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+
+        button:hover {
+            background-color: #0056b3;
+        }
+
+        #status {
+            text-align: center;
+            margin: 10px 0;
+            height: 20px;
+            color: #666;
+            font-size: 14px;
+        }
+
+        .table-container {
+            overflow-x: auto;
+            margin-bottom: 30px;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 10px;
+            background-color: white;
+        }
+
+        th,
+        td {
+            padding: 12px 15px;
+            text-align: left;
+            border-bottom: 1px solid #ddd;
+            white-space: nowrap;
+            /* 防止換行 */
+        }
+
+        th {
+            background-color: #f1f3f5;
+            color: #495057;
+            font-weight: 600;
+        }
+
+        tr:hover {
+            background-color: #f8f9fa;
+        }
+
+        /* 響應式調整 */
+        @media (max-width: 600px) {
+            .search-panel {
+                flex-direction: column;
+                align-items: stretch;
+            }
+
+            button {
+                width: 100%;
+            }
+
+            th,
+            td {
+                padding: 8px 5px;
+                font-size: 14px;
+            }
+        }
+
+        /* 新增篩選按鈕樣式 */
+        .filter-buttons {
+            display: flex;
+            gap: 5px;
+        }
+
+        .filter-btn {
+            padding: 5px 15px;
+            font-size: 14px;
+            background-color: #e9ecef;
+            color: #495057;
+            border: 1px solid #ced4da;
+            border-radius: 20px;
+            cursor: pointer;
+        }
+
+        .filter-btn:hover {
+            background-color: #dee2e6;
+        }
+
+        .filter-btn.active {
+            background-color: #007bff;
+            color: white;
+            border-color: #007bff;
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="container">
+        <div class="search-panel">
+            <label for="queryDate" style="font-size:24px">清潔巡檢紀錄：</label>
+            <input type="date" id="queryDate">
+            <button onclick="fetchData()">查詢</button>
+        </div>
+
+        
+
+        <!-- 新增：時段統計表格與篩選按鈕 -->
+        <div
+            style="display: flex; justify-content: space-between; align-items: center; margin-top: 30px; margin-bottom: 10px; flex-wrap: wrap; gap: 10px;">
+            <h5 style="margin: 0; font-size:24px">時段巡檢統計 <span id="status"></span></h5>
+            <div class="filter-buttons">
+                <button style="font-size:32px" onclick="setFilter('all')" class="filter-btn active" id="btn-all">全部</button>
+                <button style="font-size:32px" onclick="setFilter('B1樓')" class="filter-btn" id="btn-B1樓">B1</button>
+                <button style="font-size:32px" onclick="setFilter('1樓')" class="filter-btn" id="btn-1樓">1樓</button>
+                <button style="font-size:32px" onclick="setFilter('2樓')" class="filter-btn" id="btn-2樓">2樓</button>
+                <button style="font-size:32px" onclick="setFilter('3樓')" class="filter-btn" id="btn-3樓">3樓</button>
+            </div>
+        </div>
+
+        <div class="table-container">
+            <table id="hourlyTable">
+                <thead>
+                    <!-- 動態生成 -->
+                </thead>
+                <tbody id="hourlyBody">
+                    <!-- 時段資料將插入於此 -->
+                </tbody>
+            </table>
+        </div>
+
+        <h3>詳細紀錄列表</h3>
+        <div class="table-container">
+            <table id="resultTable">
+                <thead>
+                    <tr>
+                        <th>時間</th>
+                        <th>姓名</th>
+                        <th>編號</th>
+                        <th>地點</th>
+                        <th>樓層</th>
+                    </tr>
+                </thead>
+                <tbody id="tableBody">
+                    <!-- 資料將插入於此 -->
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <script>
+        // ==========================================
+        // Supabase 設定
+        // ==========================================
+        const SUPABASE_URL = 'https://fjvklwfoapytbbebpobp.supabase.co';
+        const SUPABASE_ANON_KEY = 'sb_publishable_WmoT6IVZ5QhLTLevmm2wWA_l521JsV_';
+        const TABLE_NAME = 'clean_wc';
+
+        // 全域變數儲存當前資料與篩選狀態
+        let currentData = [];
+        let currentFilter = 'all'; // all, B1樓, 1樓, 2樓, 3樓
+
+        // 初始化 Supabase 客戶端
+        let supabaseClient = null;
+        try {
+            if (typeof supabase !== 'undefined') {
+                const { createClient } = supabase;
+                supabaseClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+            }
+        } catch (e) {
+            console.error("Supabase 初始化失敗:", e);
+        }
+
+        // 預設選擇今天
+        window.onload = function () {
+            const today = new Date();
+            const yyyy = today.getFullYear();
+            const mm = String(today.getMonth() + 1).padStart(2, '0');
+            const dd = String(today.getDate()).padStart(2, '0');
+            document.getElementById('queryDate').value = `${yyyy}-${mm}-${dd}`;
+            setFilter('all'); // 初始化篩選按鈕狀態
+        }
+
+        // 設定篩選條件
+        function setFilter(filter) {
+            currentFilter = filter;
+
+            // 更新按鈕樣式
+            document.querySelectorAll('.filter-btn').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            document.getElementById(`btn-${filter}`).classList.add('active');
+
+            // 重新渲染時段表格
+            renderHourlyTable();
+        }
+
+        async function fetchData() {
+            const dateInput = document.getElementById('queryDate').value;
+            const statusDiv = document.getElementById('status');
+            const tbody = document.getElementById('tableBody');
+
+            if (!dateInput) {
+                alert("請選擇日期");
+                return;
+            }
+
+            if (!supabaseClient) {
+                statusDiv.innerText = "錯誤：Supabase 未初始化";
+                return;
+            }
+
+            statusDiv.innerText = "查詢中...";
+            tbody.innerHTML = ""; // 清空詳細表格
+            // hourlyBody 在 renderHourlyTable 中清空
+
+            // 計算當天的起始與結束時間
+            const startDate = new Date(dateInput + 'T00:00:00');
+            const endDate = new Date(dateInput + 'T23:59:59');
+
+            try {
+                const { data, error } = await supabaseClient
+                    .from(TABLE_NAME)
+                    .select('*')
+                    .gte('created_at', startDate.toISOString())
+                    .lte('created_at', endDate.toISOString())
+                    .order('created_at', { ascending: false });
+
+                if (error) throw error;
+
+                statusDiv.innerText = `查詢成功，共 ${data.length} 筆資料`;
+
+                // 儲存資料到全域變數
+                currentData = data;
+
+                // 渲染兩個表格
+                renderHourlyTable();
+                renderDetailTable();
+
+            } catch (err) {
+                console.error('Query Error:', err);
+                statusDiv.innerText = `查詢失敗：${err.message}`;
+            }
+        }
+
+        // WC 地點定義 (來自 CSV，共 35 筆)
+        const WC_LOCATIONS = [
+            // 1F
+            { id: "14(1樓)", name: "男廁" },
+            { id: "15(1樓)", name: "親子廁間" },
+            { id: "13(1樓)", name: "女廁" },
+            { id: "12(1樓)", name: "親子廁間" },
+            { id: "16(1樓)", name: "女廁" },
+            { id: "17(1樓)", name: "男廁" },
+            { id: "18(1樓)", name: "親子廁間" },
+            { id: "19(1樓)", name: "親子廁間" },
+            { id: "6(1樓)", name: "男廁" },
+            { id: "8(1樓)", name: "女廁" },
+            { id: "7(1樓)", name: "親子廁間" },
+            { id: "2(1樓)", name: "" }, // 名稱空白
+            // B1
+            { id: "1(B1樓)", name: "男廁" },
+            { id: "4(B1樓)", name: "女廁" },
+            { id: "2(B1樓)", name: "親子廁間" },
+            { id: "3(B1樓)", name: "親子廁間" },
+            // 2F
+            { id: "3(2樓)", name: "男廁" },
+            { id: "8(2樓)", name: "女廁" },
+            { id: "4(2樓)", name: "親子廁間" },
+            { id: "5(2樓)", name: "親子廁間" },
+            { id: "6(2樓)", name: "親子廁間" },
+            { id: "7(2樓)", name: "親子廁間" },
+            { id: "9(2樓)", name: "男廁" },
+            { id: "11(2樓)", name: "女廁" },
+            { id: "10(2樓)", name: "親子廁間" },
+            // 3F
+            { id: "3(3樓)", name: "男廁" },
+            { id: "7(3樓)", name: "女廁" },
+            { id: "4(3樓)", name: "親子廁間" },
+            { id: "5(3樓)", name: "親子廁間" },
+            { id: "6(3樓)", name: "親子廁間" },
+            { id: "8(3樓)", name: "親子廁間" },
+            { id: "11(3樓)", name: "男廁" },
+            { id: "10(3樓)", name: "女廁" },
+            { id: "9(3樓)", name: "親子廁間" },
+            { id: "12(3樓)", name: "親子廁間" }
+        ];
+
+        // 渲染時段統計表格 (統一使用矩陣顯示)
+        function renderHourlyTable() {
+            const hourlyTable = document.getElementById('hourlyTable');
+            const thead = hourlyTable.querySelector('thead');
+            const tbody = document.getElementById('hourlyBody');
+
+            tbody.innerHTML = "";
+            thead.innerHTML = ""; // 清空標題以便重繪
+
+            // 定義時段 (09:00 ~ 20:00)
+            const startHour = 9;
+            const endHour = 20;
+
+            // 1. 決定要顯示的 WC (全部或特定樓層)
+            let targetWCs = [];
+            if (currentFilter === 'all') {
+                targetWCs = [...WC_LOCATIONS]; // 顯示全部
+            } else {
+                // 嚴格篩選樓層：確保 '1樓' 不會匹配到 'B1樓'
+                // 檢查 id 是否包含 (樓層)
+                targetWCs = WC_LOCATIONS.filter(wc => wc.id.includes(`(${currentFilter})`));
+            }
+
+            // 2. 排序：依照 WC ID 前面的數字大小排序
+            // 例如 "14(1樓)" -> 14, "2(1樓)" -> 2
+            targetWCs.sort((a, b) => {
+                const getNum = (str) => {
+                    const match = str.match(/^(\d+)\(/);
+                    return match ? parseInt(match[1], 10) : 999;
+                };
+                const numA = getNum(a.id);
+                const numB = getNum(b.id);
+
+                if (numA !== numB) {
+                    return numA - numB;
+                }
+                // 如果數字一樣 (不同樓層混在一起時)，再比樓層
+                return a.id.localeCompare(b.id);
+            });
+
+            // 3. 建立標題列
+            let headerHtml = '<th style="width: 100px; position: sticky; left: 0; background: #f1f3f5; z-index: 2; border-right: 2px solid #ddd;">時段</th>';
+            targetWCs.forEach(wc => {
+                // 顯示 ID 和 名稱
+                const displayName = wc.name ? `<br><small style="font-weight:normal; color:#666;">${wc.name}</small>` : '';
+                headerHtml += `<th style="min-width: 80px; text-align: center; border-left: 1px solid #eee;">${wc.id}${displayName}</th>`;
+            });
+            thead.innerHTML = `<tr>${headerHtml}</tr>`;
+
+            // 4. 建立資料列
+            for (let h = startHour; h <= endHour; h++) {
+                const rangeStr = `${String(h).padStart(2, '0')}:00~${String(h + 1).padStart(2, '0')}:00`;
+
+                let rowHtml = `<td style="font-weight:bold; color:#555; position: sticky; left: 0; background: #fff; z-index: 1; border-right: 2px solid #ddd;">${rangeStr}</td>`;
+
+                // 針對每個 WC 欄位填入資料
+                targetWCs.forEach(wc => {
+                    // 篩選條件：符合 wc_id 且符合時段
+                    const records = currentData.filter(item => {
+                        if (item.wc_id !== wc.id) return false;
+
+                        if (!item.created_at) return false;
+                        const parts = item.created_at.split('T');
+                        if (parts.length > 1) {
+                            const timePart = parts[1];
+                            const hour = parseInt(timePart.split(':')[0], 10);
+                            return hour === h;
+                        }
+                        return false;
+                    });
+
+                    let cellContent = '';
+                    let bgColor = '#ffeef0'; // 預設淺粉紅 (無紀錄)
+
+                    if (records.length > 0) {
+                        bgColor = '#e6ffe6'; // 有紀錄則為淺粉綠
+                        records.forEach(r => {
+                            let timeStr = '';
+                            const parts = r.created_at.split('T');
+                            if (parts.length > 1) {
+                                timeStr = parts[1].substring(0, 8); // 取 HH:mm:ss
+                            }
+                            // 顯示名字與時間 (分兩行)
+                            cellContent += `<div style="font-size:12px;">
+                                <div style="font-weight:bold; color:#333; font-size:16px;">${r.who}</div>
+                                <div style="color:#666; font-size:16px;">${timeStr}</div>
+                            </div>`;
+                        });
+                    } else {
+                        cellContent = '<span style="color:#ccc;">-</span>';
+                    }
+
+                    rowHtml += `<td style="text-align: center; vertical-align: top; border-left: 1px solid #ddd; background-color: ${bgColor};">${cellContent}</td>`;
+                });
+
+                const tr = document.createElement('tr');
+                tr.innerHTML = rowHtml;
+                tbody.appendChild(tr);
+            }
+        }
+
+        // 渲染詳細紀錄表格
+        function renderDetailTable() {
+            const tbody = document.getElementById('tableBody');
+            tbody.innerHTML = "";
+
+            if (currentData.length === 0) {
+                const row = document.createElement('tr');
+                row.innerHTML = `<td colspan="5" style="text-align:center; color:#999;">本日無紀錄</td>`;
+                tbody.appendChild(row);
+            } else {
+                currentData.forEach(item => {
+                    const row = document.createElement('tr');
+
+                    let timeStr = '-';
+                    if (item.created_at) {
+                        const parts = item.created_at.split('T');
+                        if (parts.length > 1) {
+                            timeStr = parts[1].substring(0, 8);
+                        } else {
+                            timeStr = item.created_at;
+                        }
+                    }
+
+                    row.innerHTML = `
+                        <td>${timeStr}</td>
+                        <td>${item.who || '-'}</td>
+                        <td>${item.wc_id || '-'}</td>
+                        <td>${item.wc_type || '-'}</td>
+                        <td>${item.floor || '-'}</td>
+                    `;
+                    tbody.appendChild(row);
+                });
+            }
+        }
+    </script>
+</body>
+
+</html>
