@@ -1,7 +1,7 @@
 {
   "name": "兒童新樂園-清潔巡檢",
   "short_name": "清潔巡檢",
-  "start_url": "./app.html",
+  "start_url": "./index.html",
   "display": "standalone",
   "background_color": "#f4f6f8",
   "theme_color": "#007bff",
@@ -18,3 +18,4 @@
     }
   ]
 }
+
