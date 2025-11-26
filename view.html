@@ -286,8 +286,8 @@ try {
     
     // 假設 startStr 和 endStr 是 "2025-01-15" 這種格式
     // 轉換為台北時間的開始和結束時間
-    const startDateTime = `${startStr} 00:00:00+08:00`;
-    const endDateTime = `${endStr} 23:59:59+08:00`;
+    const startDateTime = `${dateInput} 00:00:00+08:00`;
+    const endDateTime = `${dateInput} 23:59:59+08:00`;
     
     const { data, error } = await supabaseClient
         .from(TABLE_NAME)
