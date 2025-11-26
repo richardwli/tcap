@@ -279,40 +279,45 @@
             tbody.innerHTML = ""; // 清空詳細表格
             // hourlyBody 在 renderHourlyTable 中清空
 
-            // 計算當天的起始與結束時間 (本地時間)
-            // 因為資料庫存的是 UTC (+00)，我們查詢時需要將本地日期的 00:00~23:59 轉為 UTC 區間
-            // 或者更簡單的做法：直接查詢該日期的 UTC 範圍，但要注意時區偏移
 
-            // 這裡採用：建立本地時間的 Date 物件，然後轉為 ISO 字串查詢
-            // 注意：Supabase (PostgreSQL) 的 timestamptz 比較時會自動處理時區，
-            // 但為了保險，我們手動計算 UTC 範圍
 
-            const localStart = new Date(dateInput + 'T00:00:00');
-            const localEnd = new Date(dateInput + 'T23:59:59');
+try {
+    statusDiv.innerText = '查詢中...';
+    
+    // 假設 startStr 和 endStr 是 "2025-01-15" 這種格式
+    // 轉換為台北時間的開始和結束時間
+    const startDateTime = `${startStr} 00:00:00+08:00`;
+    const endDateTime = `${endStr} 23:59:59+08:00`;
+    
+    const { data, error } = await supabaseClient
+        .from(TABLE_NAME)
+        .select('*')
+        .gte('created_at', startDateTime)
+        .lte('created_at', endDateTime)
+        .order('created_at', { ascending: false });
 
-            try {
-                const { data, error } = await supabaseClient
-                    .from(TABLE_NAME)
-                    .select('*')
-                    .gte('created_at', localStart.toISOString())
-                    .lte('created_at', localEnd.toISOString())
-                    .order('created_at', { ascending: false });
+    if (error) throw error;
 
-                if (error) throw error;
+    if (!data || data.length === 0) {
+        statusDiv.innerText = '查詢成功,但沒有符合條件的資料';
+        currentData = [];
+        renderHourlyTable();
+        renderDetailTable();
+        return;
+    }
 
-                statusDiv.innerText = `查詢成功，共 ${data.length} 筆資料`;
+    statusDiv.innerText = `查詢成功,共 ${data.length} 筆資料`;
+    currentData = data;
+    renderHourlyTable();
+    renderDetailTable();
 
-                // 儲存資料到全域變數
-                currentData = data;
-
-                // 渲染兩個表格
-                renderHourlyTable();
-                renderDetailTable();
-
-            } catch (err) {
-                console.error('Query Error:', err);
-                statusDiv.innerText = `查詢失敗：${err.message}`;
-            }
+} catch (err) {
+    console.error('Query Error:', err);
+    statusDiv.innerText = `查詢失敗:${err.message}`;
+    currentData = [];
+    renderHourlyTable();
+    renderDetailTable();
+}
         }
 
         // WC 地點定義 (來自 CSV，共 17 筆)
