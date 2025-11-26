@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="zh-TW">
 
@@ -165,16 +164,18 @@
             <label for="queryDate" style="font-size:24px">日期：</label>
             <input type="date" id="queryDate">
             <button onclick="fetchData()">查詢</button>
+            <span>v1</span>
         </div>
 
-        
+
 
         <!-- 新增：時段統計表格與篩選按鈕 -->
         <div
             style="display: flex; justify-content: space-between; align-items: center; margin-top: 30px; margin-bottom: 10px; flex-wrap: wrap; gap: 10px;">
             <h5 style="margin: 0; font-size:24px">時段 <span id="status"></span></h5>
             <div class="filter-buttons">
-                <button style="font-size:32px" onclick="setFilter('all')" class="filter-btn active" id="btn-all">全部</button>
+                <button style="font-size:32px" onclick="setFilter('all')" class="filter-btn active"
+                    id="btn-all">全部</button>
                 <button style="font-size:32px" onclick="setFilter('B1樓')" class="filter-btn" id="btn-B1樓">B1</button>
                 <button style="font-size:32px" onclick="setFilter('1樓')" class="filter-btn" id="btn-1樓">1樓</button>
                 <button style="font-size:32px" onclick="setFilter('2樓')" class="filter-btn" id="btn-2樓">2樓</button>
@@ -278,16 +279,23 @@
             tbody.innerHTML = ""; // 清空詳細表格
             // hourlyBody 在 renderHourlyTable 中清空
 
-            // 計算當天的起始與結束時間
-            const startDate = new Date(dateInput + 'T00:00:00');
-            const endDate = new Date(dateInput + 'T23:59:59');
+            // 計算當天的起始與結束時間 (本地時間)
+            // 因為資料庫存的是 UTC (+00)，我們查詢時需要將本地日期的 00:00~23:59 轉為 UTC 區間
+            // 或者更簡單的做法：直接查詢該日期的 UTC 範圍，但要注意時區偏移
+
+            // 這裡採用：建立本地時間的 Date 物件，然後轉為 ISO 字串查詢
+            // 注意：Supabase (PostgreSQL) 的 timestamptz 比較時會自動處理時區，
+            // 但為了保險，我們手動計算 UTC 範圍
+
+            const localStart = new Date(dateInput + 'T00:00:00');
+            const localEnd = new Date(dateInput + 'T23:59:59');
 
             try {
                 const { data, error } = await supabaseClient
                     .from(TABLE_NAME)
                     .select('*')
-                    .gte('created_at', startDate.toISOString())
-                    .lte('created_at', endDate.toISOString())
+                    .gte('created_at', localStart.toISOString())
+                    .lte('created_at', localEnd.toISOString())
                     .order('created_at', { ascending: false });
 
                 if (error) throw error;
@@ -307,7 +315,7 @@
             }
         }
 
-        // WC 地點定義 (來自 CSV，共 35 筆)
+        // WC 地點定義 (來自 CSV，共 17 筆)
         const WC_LOCATIONS = [
             { "id": "14.15(1樓)", "floor": "1F", "name": "男廁" },
             { "id": "12.13(1樓)", "floor": "1F", "name": "女廁" },
@@ -390,13 +398,12 @@
                         if (item.wc_id !== wc.id) return false;
 
                         if (!item.created_at) return false;
-                        const parts = item.created_at.split('T');
-                        if (parts.length > 1) {
-                            const timePart = parts[1];
-                            const hour = parseInt(timePart.split(':')[0], 10);
-                            return hour === h;
-                        }
-                        return false;
+
+                        // 解析 UTC 時間並轉為本地時間
+                        const dateObj = new Date(item.created_at);
+                        const hour = dateObj.getHours(); // getHours() 會回傳本地時間的小時
+
+                        return hour === h;
                     });
 
                     let cellContent = '';
@@ -405,11 +412,10 @@
                     if (records.length > 0) {
                         bgColor = '#e6ffe6'; // 有紀錄則為淺粉綠
                         records.forEach(r => {
-                            let timeStr = '';
-                            const parts = r.created_at.split('T');
-                            if (parts.length > 1) {
-                                timeStr = parts[1].substring(0, 8); // 取 HH:mm:ss
-                            }
+                            // 解析 UTC 時間並轉為本地時間字串
+                            const dateObj = new Date(r.created_at);
+                            const timeStr = dateObj.toLocaleTimeString('zh-TW', { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' });
+
                             // 顯示名字與時間 (分兩行)
                             cellContent += `<div style="font-size:12px;">
                                 <div style="font-weight:bold; color:#333; font-size:16px;">${r.who}</div>
@@ -444,12 +450,9 @@
 
                     let timeStr = '-';
                     if (item.created_at) {
-                        const parts = item.created_at.split('T');
-                        if (parts.length > 1) {
-                            timeStr = parts[1].substring(0, 8);
-                        } else {
-                            timeStr = item.created_at;
-                        }
+                        // 解析 UTC 時間並轉為本地時間字串
+                        const dateObj = new Date(item.created_at);
+                        timeStr = dateObj.toLocaleTimeString('zh-TW', { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' });
                     }
 
                     row.innerHTML = `
